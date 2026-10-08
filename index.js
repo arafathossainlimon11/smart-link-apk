@@ -3,8 +3,8 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, addDoc, doc, getDoc, updateDoc, increment, getDocs, orderBy, query } = require('firebase/firestore');
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const ADMIN_PASS = "arafat01721313101";
 
@@ -22,7 +22,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
-// এডমিন প্যানেল রেন্ডার করার ফাংশন
+// এডমিন প্যানেল HTML (Monetag ট্যাগ সহ)
 const renderAdmin = (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -30,6 +30,7 @@ const renderAdmin = (req, res) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="monetag" content="4b78f101fbeec5762d4b6ea2ec0c9c6f">
       <title>Smart Link Admin Panel</title>
       <style>
         body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
@@ -122,27 +123,31 @@ const renderAdmin = (req, res) => {
         }
 
         async function loadLinks() {
-          const res = await fetch('/api/links');
-          const data = await res.json();
-          const tbody = document.getElementById('linkList');
-          tbody.innerHTML = '';
-          
-          if(!data.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">এখনো কোনো লিংক তৈরি করা হয়নি।</td></tr>';
-            return;
-          }
+          try {
+            const res = await fetch('/api/links');
+            const data = await res.json();
+            const tbody = document.getElementById('linkList');
+            tbody.innerHTML = '';
+            
+            if(!data || !data.length) {
+              tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">এখনো কোনো লিংক তৈরি করা হয়নি।</td></tr>';
+              return;
+            }
 
-          data.forEach(item => {
-            const shortUrl = window.location.origin + '/p/' + item.id;
-            tbody.innerHTML += \`
-              <tr>
-                <td><img src="\${item.imageUrl}" width="60" height="60" style="object-fit:cover; border-radius:5px;"></td>
-                <td><a href="\${shortUrl}" target="_blank">\${shortUrl}</a></td>
-                <td style="font-weight:bold; color:#007bff; text-align:center;">\${item.clicks || 0}</td>
-                <td><button class="copy-btn" onclick="navigator.clipboard.writeText('\${shortUrl}'); alert('লিংক কপি হয়েছে!');">Copy</button></td>
-              </tr>
-            \`;
-          });
+            data.forEach(item => {
+              const shortUrl = window.location.origin + '/p/' + item.id;
+              tbody.innerHTML += \`
+                <tr>
+                  <td><img src="\${item.imageUrl}" width="60" height="60" style="object-fit:cover; border-radius:5px;"></td>
+                  <td><a href="\${shortUrl}" target="_blank">\${shortUrl}</a></td>
+                  <td style="font-weight:bold; color:#007bff; text-align:center;">\${item.clicks || 0}</td>
+                  <td><button class="copy-btn" onclick="navigator.clipboard.writeText('\${shortUrl}'); alert('লিংক কপি হয়েছে!');">Copy</button></td>
+                </tr>
+              \`;
+            });
+          } catch(err) {
+            console.error(err);
+          }
         }
 
         document.getElementById('linkForm').addEventListener('submit', async (e) => {
@@ -153,20 +158,25 @@ const renderAdmin = (req, res) => {
 
           const imageUrl = document.getElementById('imageUrl').value;
           const adUrl = document.getElementById('adUrl').value;
-          const token = localStorage.getItem('admin_token');
 
-          const res = await fetch('/api/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl, adUrl, token })
-          });
+          try {
+            const res = await fetch('/api/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageUrl, adUrl, token: AUTH_KEY })
+            });
 
-          if (res.ok) {
-            document.getElementById('imageUrl').value = '';
-            document.getElementById('adUrl').value = '';
-            loadLinks();
-          } else {
-            alert('পাসওয়ার্ড ভুল বা সিকিউরিটি ত্রুটি!');
+            const result = await res.json();
+
+            if (res.ok && result.success) {
+              document.getElementById('imageUrl').value = '';
+              document.getElementById('adUrl').value = '';
+              loadLinks();
+            } else {
+              alert('ত্রুটি: ' + (result.error || 'লিংক জেনারেট করা সম্ভব হয়নি!'));
+            }
+          } catch (err) {
+            alert('সার্ভারে যোগাযোগ করতে সমস্যা হয়েছে!');
           }
 
           btn.innerText = 'RUN (লিংক জেনারেট করুন)';
@@ -178,7 +188,7 @@ const renderAdmin = (req, res) => {
   `);
 };
 
-// ১. এডমিন প্যানেল রাউটস (সরাসরি শো করবে)
+// ১. এডমিন পেজ রাউটস
 app.get('/', renderAdmin);
 app.get('/admin', renderAdmin);
 app.get('/index.js', renderAdmin);
@@ -186,19 +196,29 @@ app.get('/index.js', renderAdmin);
 // ২. লিংক জেনারেট API
 app.post('/api/create', async (req, res) => {
   try {
-    const { imageUrl, adUrl, token } = req.body;
-    if (token !== ADMIN_PASS) {
-      return res.status(401).json({ error: "Unauthorized access" });
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch(e){}
     }
+    const { imageUrl, adUrl, token } = body || {};
+
+    if (token !== ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: "পাসওয়ার্ড মিলেনি!" });
+    }
+
+    if (!imageUrl || !adUrl) {
+      return res.status(400).json({ success: false, error: "ইমেজ ও অ্যাডের লিংক ইনপুট ঘর ফাঁকা রাখা যাবে না।" });
+    }
+
     const docRef = await addDoc(collection(db, "smart_links"), {
       imageUrl,
       adUrl,
       clicks: 0,
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     });
     res.json({ success: true, id: docRef.id });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -213,11 +233,11 @@ app.get('/api/links', async (req, res) => {
     });
     res.json(links);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ৪. ইউজার পেজ (ফেসবুক কার্ড, ৩ সেকেন্ড টাইমার ও অটো রিডাইরেক্ট)
+// ৪. ইউজার পেজ (ফেসবুক মেটা ট্যাগ, টাইমার ও অটো রিডাইরেক্ট)
 app.get('/p/:id', async (req, res) => {
   try {
     const linkId = req.params.id;
@@ -229,8 +249,6 @@ app.get('/p/:id', async (req, res) => {
     }
 
     const data = docSnap.data();
-
-    // ক্লিক সংখ্যা ১ বাড়িয়ে দেওয়া
     await updateDoc(docRef, { clicks: increment(1) });
 
     const currentUrl = `${req.protocol}://${req.get('host')}/p/${linkId}`;
@@ -241,8 +259,8 @@ app.get('/p/:id', async (req, res) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="monetag" content="4b78f101fbeec5762d4b6ea2ec0c9c6f">
         
-        <!-- ফেসবুক ওপেন গ্রাফ মেটা ট্যাগ -->
         <meta property="og:title" content="Click to view full image">
         <meta property="og:description" content="Click the image to expand and view full content.">
         <meta property="og:image" content="${data.imageUrl}">
