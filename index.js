@@ -22,8 +22,8 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
-// ১. এডমিন প্যানেল পেজ (/admin)
-app.get('/admin', (req, res) => {
+// এডমিন প্যানেল রেন্ডার করার ফাংশন
+const renderAdmin = (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html lang="bn">
@@ -176,7 +176,12 @@ app.get('/admin', (req, res) => {
     </body>
     </html>
   `);
-});
+};
+
+// ১. এডমিন প্যানেল রাউটস (সরাসরি শো করবে)
+app.get('/', renderAdmin);
+app.get('/admin', renderAdmin);
+app.get('/index.js', renderAdmin);
 
 // ২. লিংক জেনারেট API
 app.post('/api/create', async (req, res) => {
@@ -282,16 +287,6 @@ app.get('/p/:id', async (req, res) => {
   } catch (error) {
     res.status(500).send("সার্ভারে সমস্যা হয়েছে।");
   }
-});
-
-// ডিফল্ট রাউট
-app.get('/', (req, res) => {
-  res.redirect('/admin');
-});
-
-// /index.js সরাসরি এডমিন প্যানেলে রিডাইরেক্ট করবে
-app.get('/index.js', (req, res) => {
-  res.redirect('/admin');
 });
 
 module.exports = app;
