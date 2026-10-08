@@ -6,7 +6,10 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// এডমিন সিকিউরিটি ও ফিক্সড অ্যাড লিংকস
 const ADMIN_PASS = "arafat01721313101";
+const DIRECT_AD_URL = "https://uplcm.com/4/11982343";
+const POPUNDER_SCRIPT = `<script>(function(s){s.dataset.zone='11982337',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`;
 
 // ফায়ারবেস কনফিগারেশন
 const firebaseConfig = {
@@ -19,10 +22,15 @@ const firebaseConfig = {
   measurementId: "G-VDYTB5N480"
 };
 
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
+let db;
+try {
+  const firebaseApp = initializeApp(firebaseConfig);
+  db = getFirestore(firebaseApp);
+} catch (e) {
+  console.error("Firebase init error: ", e);
+}
 
-// এডমিন প্যানেল HTML (Monetag ট্যাগ সহ)
+// এডমিন প্যানেল HTML (শুধুমাত্র ইমেজ ইনপুট)
 const renderAdmin = (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -33,47 +41,43 @@ const renderAdmin = (req, res) => {
       <meta name="monetag" content="4b78f101fbeec5762d4b6ea2ec0c9c6f">
       <title>Smart Link Admin Panel</title>
       <style>
-        body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { margin-top: 0; color: #007bff; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; }
-        input[type="url"], input[type="password"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h2 { margin-top: 0; color: #007bff; text-align: center; font-size: 24px; }
+        .form-group { margin-bottom: 18px; }
+        label { font-weight: 600; display: block; margin-bottom: 8px; font-size: 14px; }
+        input[type="url"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; transition: background 0.3s; }
         button:hover { background: #0056b3; }
         table { width: 100%; border-collapse: collapse; margin-top: 25px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; word-break: break-all; }
+        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; font-size: 13px; word-break: break-all; }
         th { background-color: #007bff; color: white; }
-        .copy-btn { background: #28a745; border: none; color: white; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .copy-btn { background: #28a745; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
         .copy-btn:hover { background: #218838; }
-        .login-box { max-width: 400px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .login-box { max-width: 380px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
       </style>
     </head>
     <body>
 
       <div id="loginSection" class="login-box">
-        <h2 style="margin-bottom: 20px;">এডমিন লগইন</h2>
+        <h2>এডমিন লগইন</h2>
         <div class="form-group">
           <label>পাসওয়ার্ড দিন:</label>
           <input type="password" id="passInput" placeholder="Enter Admin Password">
         </div>
         <button onclick="checkPass()">লগইন করুন</button>
-        <p id="errorMsg" style="color: red; display: none; margin-top: 10px; text-align: center;">ভুল পাসওয়ার্ড!</p>
+        <p id="errorMsg" style="color: red; display: none; margin-top: 12px; text-align: center; font-weight: bold;">ভুল পাসওয়ার্ড!</p>
       </div>
 
       <div id="adminSection" class="container" style="display: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin:0;">স্মার্টলিংক এডমিন প্যানেল</h2>
-          <button onclick="logout()" style="width: auto; background: #dc3545; padding: 6px 15px;">লগআউট</button>
+          <button onclick="logout()" style="width: auto; background: #dc3545; padding: 8px 16px; font-size: 13px;">লগআউট</button>
         </div>
         <form id="linkForm">
           <div class="form-group">
-            <label>১. অনলাইন ইমেজ লিংক (Image URL):</label>
+            <label>অনলাইন ইমেজ লিংক (Image URL):</label>
             <input type="url" id="imageUrl" placeholder="https://example.com/image.jpg" required>
-          </div>
-          <div class="form-group">
-            <label>২. অ্যাডস / ডেসটিনেশন লিংক (Ad URL / Target Link):</label>
-            <input type="url" id="adUrl" placeholder="https://example.com/target-link" required>
           </div>
           <button type="submit" id="btnText">RUN (লিংক জেনারেট করুন)</button>
         </form>
@@ -157,23 +161,25 @@ const renderAdmin = (req, res) => {
           btn.disabled = true;
 
           const imageUrl = document.getElementById('imageUrl').value;
-          const adUrl = document.getElementById('adUrl').value;
+          const savedToken = localStorage.getItem('admin_token') || AUTH_KEY;
 
           try {
             const res = await fetch('/api/create', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageUrl, adUrl, token: AUTH_KEY })
+              body: JSON.stringify({ imageUrl, token: savedToken })
             });
 
             const result = await res.json();
 
             if (res.ok && result.success) {
               document.getElementById('imageUrl').value = '';
-              document.getElementById('adUrl').value = '';
               loadLinks();
             } else {
-              alert('ত্রুটি: ' + (result.error || 'লিংক জেনারেট করা সম্ভব হয়নি!'));
+              alert('ত্রুটি: ' + (result.error || 'পাসওয়ার্ড সিকিউরিটি ত্রুটি!'));
+              if(result.error && result.error.includes("পাসওয়ার্ড")) {
+                logout();
+              }
             }
           } catch (err) {
             alert('সার্ভারে যোগাযোগ করতে সমস্যা হয়েছে!');
@@ -200,19 +206,22 @@ app.post('/api/create', async (req, res) => {
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch(e){}
     }
-    const { imageUrl, adUrl, token } = body || {};
+    const { imageUrl, token } = body || {};
 
     if (token !== ADMIN_PASS) {
       return res.status(401).json({ success: false, error: "পাসওয়ার্ড মিলেনি!" });
     }
 
-    if (!imageUrl || !adUrl) {
-      return res.status(400).json({ success: false, error: "ইমেজ ও অ্যাডের লিংক ইনপুট ঘর ফাঁকা রাখা যাবে না।" });
+    if (!imageUrl) {
+      return res.status(400).json({ success: false, error: "ইমেজের লিংক ইনপুট ঘর ফাঁকা রাখা যাবে না।" });
+    }
+
+    if (!db) {
+      return res.status(500).json({ success: false, error: "ডাটাবেজ কানেক্ট হতে পারেনি।" });
     }
 
     const docRef = await addDoc(collection(db, "smart_links"), {
       imageUrl,
-      adUrl,
       clicks: 0,
       createdAt: new Date().toISOString()
     });
@@ -225,6 +234,7 @@ app.post('/api/create', async (req, res) => {
 // ৩. লিংকের তালিকা বের করার API
 app.get('/api/links', async (req, res) => {
   try {
+    if (!db) return res.json([]);
     const q = query(collection(db, "smart_links"), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     const links = [];
@@ -237,10 +247,12 @@ app.get('/api/links', async (req, res) => {
   }
 });
 
-// ৪. ইউজার পেজ (ফেসবুক মেটা ট্যাগ, টাইমার ও অটো রিডাইরেক্ট)
+// ৪. ইউজার ল্যান্ডিং পেজ (ফেসবুক মেটা ট্যাগ, OnClick পপআপ ও টাইমার রিডাইরেক্ট)
 app.get('/p/:id', async (req, res) => {
   try {
     const linkId = req.params.id;
+    if (!db) return res.status(500).send("ডাটাবেজ কানেকশন ত্রুটি।");
+
     const docRef = doc(db, "smart_links", linkId);
     const docSnap = await getDoc(docRef);
 
@@ -249,7 +261,7 @@ app.get('/p/:id', async (req, res) => {
     }
 
     const data = docSnap.data();
-    await updateDoc(docRef, { clicks: increment(1) });
+    updateDoc(docRef, { clicks: increment(1) }).catch(e => console.error(e));
 
     const currentUrl = `${req.protocol}://${req.get('host')}/p/${linkId}`;
 
@@ -261,6 +273,7 @@ app.get('/p/:id', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="monetag" content="4b78f101fbeec5762d4b6ea2ec0c9c6f">
         
+        <!-- ফেসবুক ওপেন গ্রাফ মেটা ট্যাগ -->
         <meta property="og:title" content="Click to view full image">
         <meta property="og:description" content="Click the image to expand and view full content.">
         <meta property="og:image" content="${data.imageUrl}">
@@ -268,11 +281,15 @@ app.get('/p/:id', async (req, res) => {
         <meta property="og:type" content="website">
 
         <title>Loading...</title>
+        
+        <!-- OnClick (Popunder) বিজ্ঞাপনের কোড -->
+        ${POPUNDER_SCRIPT}
+
         <style>
           body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: white; text-align: center; }
           .timer-box { font-size: 20px; font-weight: bold; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 30px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2); }
           .count { color: #38bdf8; font-size: 26px; }
-          img { max-width: 90%; max-height: 60vh; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); object-fit: contain; }
+          img { max-width: 90%; max-height: 60vh; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); object-fit: contain; cursor: pointer; }
         </style>
       </head>
       <body>
@@ -282,13 +299,15 @@ app.get('/p/:id', async (req, res) => {
         </div>
 
         <div>
-          <img src="${data.imageUrl}" alt="Content Preview">
+          <a href="${DIRECT_AD_URL}">
+            <img src="${data.imageUrl}" alt="Content Preview">
+          </a>
         </div>
 
         <script>
           let timeLeft = 3;
           const timerElem = document.getElementById('timer');
-          const targetUrl = "${data.adUrl}";
+          const targetUrl = "${DIRECT_AD_URL}";
 
           const countdown = setInterval(() => {
             timeLeft--;
