@@ -289,4 +289,9 @@ app.get('/', (req, res) => {
   res.redirect('/admin');
 });
 
+// /index.js সরাসরি এডমিন প্যানেলে রিডাইরেক্ট করবে
+app.get('/index.js', (req, res) => {
+  res.redirect('/admin');
+});
+
 module.exports = app;
